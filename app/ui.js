@@ -184,6 +184,9 @@ const UI = {
         UI.initSetting('repeaterID', '');
         UI.initSetting('reconnect', false);
         UI.initSetting('reconnect_delay', 5000);
+        //TODO add check clipboard permission
+        UI.initSetting('clipboard_up', false); 
+        UI.initSetting('clipboard_down',false);
 
         UI.setupSettingLabels();
     },
@@ -376,6 +379,11 @@ const UI = {
         UI.addSettingChangeHandler('logging', UI.updateLogging);
         UI.addSettingChangeHandler('reconnect');
         UI.addSettingChangeHandler('reconnect_delay');
+
+        //TODO add event listener to hander clipboard checkbox changes
+        //TODO remove this event handeller to disable clipboards checkbox
+        UI.addSettingChangeHandler('clipboard_up')
+        UI.addSettingChangeHandler('clipboard_down')
     },
 
     addFullscreenHandlers() {
@@ -961,16 +969,22 @@ const UI = {
     },
 
     clipboardReceive(e) {
-        Log.Debug(">> UI.clipboardReceive: " + e.detail.text.substr(0, 40) + "...");
-        document.getElementById('noVNC_clipboard_text').value = e.detail.text;
-        Log.Debug("<< UI.clipboardReceive");
+        if(UI.getSetting("clipboard_down")){
+
+            Log.Debug(">> UI.clipboardReceive: " + e.detail.text.substr(0, 40) + "...");
+            document.getElementById('noVNC_clipboard_text').value = e.detail.text;
+            Log.Debug("<< UI.clipboardReceive");
+        }
     },
 
     clipboardSend() {
-        const text = document.getElementById('noVNC_clipboard_text').value;
-        Log.Debug(">> UI.clipboardSend: " + text.substr(0, 40) + "...");
-        UI.rfb.clipboardPasteFrom(text);
-        Log.Debug("<< UI.clipboardSend");
+        if(UI.getSetting("clipboard_up")){
+
+            const text = document.getElementById('noVNC_clipboard_text').value;
+            Log.Debug(">> UI.clipboardSend: " + text.substr(0, 40) + "...");
+            UI.rfb.clipboardPasteFrom(text);
+            Log.Debug("<< UI.clipboardSend");
+        }
     },
 
 /* ------^-------
