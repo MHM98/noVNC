@@ -970,10 +970,13 @@ const UI = {
 
     clipboardReceive(e) {
         if(UI.getSetting("clipboard_down")){
-
             Log.Debug(">> UI.clipboardReceive: " + e.detail.text.substr(0, 40) + "...");
             document.getElementById('noVNC_clipboard_text').value = e.detail.text;
             Log.Debug("<< UI.clipboardReceive");
+            if(navigator.clipboard.writeText){
+                navigator.clipboard.writeText(e.detail.text)
+                .catch(()=>console.log("Failed to write system clipboard."))
+            }
         }
     },
 
