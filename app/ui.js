@@ -36,6 +36,7 @@ const UI = {
 
     lastKeyboardinput: null,
     defaultKeyboardinputLen: 100,
+    needToCheckClipboardChange: false,
 
     inhibitReconnect: true,
     reconnectCallback: null,
@@ -184,7 +185,6 @@ const UI = {
         UI.initSetting('repeaterID', '');
         UI.initSetting('reconnect', false);
         UI.initSetting('reconnect_delay', 5000);
-        //TODO add check clipboard permission
         UI.initSetting('clipboard_up', false); 
         UI.initSetting('clipboard_down',false);
 
@@ -379,9 +379,6 @@ const UI = {
         UI.addSettingChangeHandler('logging', UI.updateLogging);
         UI.addSettingChangeHandler('reconnect');
         UI.addSettingChangeHandler('reconnect_delay');
-
-        //TODO add event listener to hander clipboard checkbox changes
-        //TODO remove this event handeller to disable clipboards checkbox
         UI.addSettingChangeHandler('clipboard_up')
         UI.addSettingChangeHandler('clipboard_down')
     },
@@ -980,9 +977,73 @@ const UI = {
         }
     },
 
+    readClipboard(callback) {
+        if (navigator.clipboard.readText) {
+          navigator.clipboard.readText().then((text) => {
+            return callback(text);
+          }).catch(function () {
+            return Log.Debug("Failed to read system clipboard");
+          });
+        }
+      },
+
+      copyFromLocalClipboard() {
+        if (UI.getSetting('clipboard_up')) {
+            UI.readClipboard((text) => {
+                var maximumBufferSize = 10000;
+                var clipVal = document.getElementById('noVNC_clipboard_text').value;
+
+                if (clipVal != text) {
+                    document.getElementById('noVNC_clipboard_text').value = text; // The websocket has a maximum buffer array size
+
+                    if (text.length > maximumBufferSize) {
+                        alert("Clipboard contents is too large. Data truncated.");
+                        UI.rfb.clipboardPasteFrom(text.slice(0, maximumBufferSize));
+                    } else {
+                        UI.rfb.clipboardPasteFrom(text);
+                    }
+                } // Reset flag to prevent checking too often
+
+
+                UI.needToCheckClipboardChange = false;
+            });
+        }
+    },
+    focusVNC() {
+        UI.copyFromLocalClipboard();
+        },
+
+        enterVNC() {
+        UI.copyFromLocalClipboard();
+        },
+
+    leaveVNC() {
+        UI.needToCheckClipboardChange = true;
+        },
+
+        blurVNC() {
+        UI.needToCheckClipboardChange = true;
+        },
+
+        focusoutVNC() {
+        UI.needToCheckClipboardChange = true;
+        },
+    
+        // On these 2 events, check if we need to look at clipboard.
+        mouseMoveVNC() {
+        if ( UI.needToCheckClipboardChange ) {
+            UI.copyFromLocalClipboard();
+        }
+        },
+
+        mouseDownVNC() {
+        if ( UI.needToCheckClipboardChange ) {
+            UI.copyFromLocalClipboard();
+        }
+        },
+    
     clipboardSend() {
         if(UI.getSetting("clipboard_up")){
-
             const text = document.getElementById('noVNC_clipboard_text').value;
             Log.Debug(">> UI.clipboardSend: " + text.substr(0, 40) + "...");
             UI.rfb.clipboardPasteFrom(text);
@@ -1059,6 +1120,13 @@ const UI = {
         UI.rfb.addEventListener("securityfailure", UI.securityFailed);
         UI.rfb.addEventListener("capabilities", UI.updatePowerButton);
         UI.rfb.addEventListener("clipboard", UI.clipboardReceive);
+        document.addEventListener('mouseenter', UI.enterVNC);
+        document.addEventListener('mouseleave', UI.leaveVNC);
+        document.addEventListener('blur', UI.blurVNC);
+        document.addEventListener('focus', UI.focusVNC);
+        document.addEventListener('focusout', UI.focusoutVNC);
+        document.addEventListener('mousemove', UI.mouseMoveVNC);
+        document.addEventListener('mousedown', UI.mouseDownVNC);
         UI.rfb.addEventListener("bell", UI.bell);
         UI.rfb.addEventListener("desktopname", UI.updateDesktopName);
         UI.rfb.clipViewport = UI.getSetting('view_clip');
@@ -1474,6 +1542,9 @@ const UI = {
 
     keepVirtualKeyboard(event) {
         const input = document.getElementById('noVNC_keyboardinput');
+        if ( UI.needToCheckClipboardChange ) {
+            UI.copyFromLocalClipboard();
+        }
 
         // Only prevent focus change if the virtual keyboard is active
         if (document.activeElement != input) {
